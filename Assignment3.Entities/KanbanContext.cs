@@ -8,6 +8,7 @@ public sealed class KanbanContext : DbContext
     }
 
     public DbSet<Tag> Tags => Set<Tag>();
+    public DbSet<Task> Tasks => Set<Task>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -18,16 +19,22 @@ public sealed class KanbanContext : DbContext
         modelBuilder.Entity<Tag>().Property(c => c.Name)
             .IsRequired();
 
+
+
         modelBuilder.Entity<Task>().Property(c => c.Title)
             .HasMaxLength(100);
         modelBuilder.Entity<Task>().Property(c => c.Title)
             .IsRequired();
+
         modelBuilder.Entity<Task>().Property(c => c.Description)
             .HasMaxLength(2^31);
         modelBuilder.Entity<Task>().Property(c => c.Description)
             .IsRequired(false);
+
         modelBuilder.Entity<Task>().Property(c => c.State)
             .IsRequired();
+
+            
 
         modelBuilder.Entity<User>().Property(c => c.Name)
             .HasMaxLength(100);
