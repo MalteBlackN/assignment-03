@@ -11,23 +11,54 @@ public class TaskRepository : ITaskRepository
         context = _context;
     }
 
+    private ICollection<Tag> Convert_Strings_to_Tags(ICollection<string> strings)
+    {
+        ICollection<Tag> tags = new List<Tag>();
+        foreach (string s in strings)
+        {
+            foreach (Tag t in context.Tags)
+            {
+                if (t.Name.Equals(s))
+                {
+                    tags.Add(t);
+                }
+
+            }
+        }
+        return tags;
+    }
+
     public (Response Response, int TaskId) Create(TaskCreateDTO task)
     {
         var entity = context.Tasks.FirstOrDefault(c => c.Title == task.Title);
         Response response;
-
-        if (entity is null)
+        ICollection<Tag> tags;
+        if (task.Tags is null)
         {
-            entity = new Task { Title = task.Title };
+            tags = new List<Tag>();
+        }
+        else
+        {
+            tags = Convert_Strings_to_Tags(task.Tags);
+        }
+
+        if (entity is not null)
+        {
+            response = Conflict;
+        }
+        else if (task.AssignedToId is not null && context.Users.Find(task.AssignedToId) is null)
+        {
+            response = BadRequest;
+            entity = new Task { Title = task.Title, Description = task.Description!, State = New, Tags = tags, Created = DateTime.UtcNow, StateUpdated = DateTime.UtcNow };
+        }
+        else
+        {
+            entity = new Task { Title = task.Title, Description = task.Description!, State = New, Tags = tags, Created = DateTime.UtcNow, StateUpdated = DateTime.UtcNow };
 
             context.Tasks.Add(entity);
             context.SaveChanges();
 
             response = Created;
-        }
-        else
-        {
-            response = Conflict;
         }
 
         return (response, entity.Id);
@@ -86,7 +117,7 @@ public class TaskRepository : ITaskRepository
     {
         var task = from c in context.Tasks
             where c.Id == taskId
-            select new TaskDetailsDTO(c.Id, c.Title, c.Description, new DateTime(2020, 01, 01), c.AssignedTo.Name, (IReadOnlyCollection<string>)c.Tags.Select(c => c.Name), c.State, new DateTime(2022, 01, 01));
+            select new TaskDetailsDTO(c.Id, c.Title, c.Description, c.Created, c.AssignedTo.Name, (IReadOnlyCollection<string>)c.Tags.Select(c => c.Name), c.State, c.StateUpdated);
 
         return task.FirstOrDefault()!;
     }
@@ -104,9 +135,29 @@ public class TaskRepository : ITaskRepository
         {
             response = Conflict;
         }
+        else if (task.AssignedToId is not null && context.Users.Find(task.AssignedToId) is null)
+        {
+            response = BadRequest;
+        }
         else
         {
             entity.Title = task.Title;
+            if (task.Description != null)
+                entity.Description = task.Description;
+            if (task.AssignedToId is not null)
+            {
+                entity.AssignedTo = context.Users.Find(task.AssignedToId);
+            }
+            if (task.Tags is not null)
+            {
+                entity.Tags = Convert_Strings_to_Tags(task.Tags);
+            }
+            if (entity.State != task.State)
+            {
+                entity.State = task.State;
+                entity.StateUpdated = DateTime.UtcNow;
+            }
+
             context.SaveChanges();
             response = Updated;
         }
@@ -123,9 +174,17 @@ public class TaskRepository : ITaskRepository
         {
             response = NotFound;
         }
+        else if (task.State == Active)
+        {
+            response = BadRequest;
+        }
+        else if (task.State == Resolved || task.State == Closed || task.State == Removed)
+        {
+            response = Conflict;
+        }
         else
         {
-            context.Tasks.Remove(task);
+            task.State = Removed;
             context.SaveChanges();
 
             response = Deleted;

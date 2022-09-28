@@ -1,8 +1,3 @@
-using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
-using Assignment3.Core;
-using static Assignment3.Core.Response;
-
 namespace Assignment3.Entities.Tests;
 
 public class TagRepositoryTests : IDisposable
@@ -20,7 +15,7 @@ public class TagRepositoryTests : IDisposable
         _context.Database.EnsureCreated();
         var tag1 = new Tag { Id = 1, Name = "Cleaning", Tasks = new List<Task>() };
         var tag2 = new Tag { Id = 2, Name = "Refill", Tasks = new List<Task>() };
-        var task1 = new Task { Id = 1, Title = "Clean floors", Tags = new List<Tag>(){tag1}, State = State.New };
+        var task1 = new Task { Id = 1, Title = "Clean floors", Tags = new List<Tag>(){tag1}, State = New };
         tag1.Tasks.Add(task1);
 
         _context.Tags.AddRange(tag1, tag2);
@@ -37,10 +32,8 @@ public class TagRepositoryTests : IDisposable
         // Arrange
         var (response, created) = repository.Create(new TagCreateDTO("Program"));
 
-        // Act
-        response.Should().Be(Created);
-
         // Assert
+        response.Should().Be(Created);
         created.Should().Be(new TagDTO(3, "Program").Id);
     }
 
@@ -111,11 +104,23 @@ public class TagRepositoryTests : IDisposable
     [Fact]
     public void Delete_given_existing_Tag_with_Tasks_returns_Conflict_and_does_not_delete()
     {
+        // Act
         var response = repository.Delete(1);
 
+        // Assert
         response.Should().Be(Conflict);
-
         context.Tags.Find(1).Should().NotBeNull();
+    }
+
+    [Fact]
+    public void Delete_given_existing_Tag_with_Tasks_and_Force_equals_True_Deletes_and_returns_deleted()
+    {
+        // Act
+        var response = repository.Delete(1, true);
+
+        // Assert
+        response.Should().Be(Deleted);
+        context.Tags.Find(1).Should().BeNull();
     }
 
     public void Dispose()

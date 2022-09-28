@@ -8,4 +8,6 @@ public class Task
     public string Description { get;set; }
     public State State { get;set; }
     public virtual ICollection<Tag> Tags { get;set; }
+    public DateTime Created { get;set; }
+    public DateTime StateUpdated { get;set; }
 }
